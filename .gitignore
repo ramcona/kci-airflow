@@ -1,0 +1,37 @@
+# Node.js
+node_modules/
+.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+dag_log/
+
+# OS
+.DS_Store
+.idea/
+.vscode/
+
+# Testing
+/coverage
+
+# Build artifacts
+dist/
+build/
+.next/
+
+# Sequelize
+*.sqlite
+
+# Docker
+Dockerfile.webapp.bak
+
+# Airflow
+dags/__pycache__/
+
+# Config
+config/config.json
+copy.env

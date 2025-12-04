@@ -1,0 +1,41 @@
+<h1 class="mb-4"><%= title %></h1>
+
+<div class="card">
+  <div class="card-header">
+    Riwayat Aktivitas Sistem (100 Terbaru)
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Waktu</th>
+            <th>Level</th>
+            <th>Sumber</th>
+            <th>Pesan</th>
+            <th>User</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% logs.forEach(log => { %>
+            <tr>
+              <td><%= new Date(log.createdAt).toLocaleString('id-ID') %></td>
+              <td>
+                <% if (log.level === 'ERROR') { %>
+                  <span class="badge bg-danger"><%= log.level %></span>
+                <% } else if (log.level === 'WARNING') { %>
+                  <span class="badge bg-warning text-dark"><%= log.level %></span>
+                <% } else { %>
+                  <span class="badge bg-info text-dark"><%= log.level %></span>
+                <% } %>
+              </td>
+              <td><%= log.source %></td>
+              <td><%= log.message %></td>
+              <td><%= log.user_email || 'N/A' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

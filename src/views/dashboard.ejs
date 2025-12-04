@@ -1,0 +1,62 @@
+<div class="container-fluid">
+  <h1 class="mt-4"><%= title %></h1>
+  <p>Selamat datang di Sistem Otomasi Pengarsipan Data Enterprise.</p>
+
+  <div class="row">
+    <div class="col-xl-6 col-md-6">
+      <div class="card bg-primary text-white mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-gear-wide-connected fs-1"></i>
+            </div>
+            <div class="text-end">
+              <div class="fs-3"><%= totalConfigs %></div>
+              <div>Total Konfigurasi Arsip</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6 col-md-6">
+      <div class="card <%= lastAirflowLog && lastAirflowLog.level === 'ERROR' ? 'bg-danger' : 'bg-success' %> text-white mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-wind fs-1"></i>
+            </div>
+            <div class="text-end">
+              <div class="fs-3">
+                <% if (lastAirflowLog) { %>
+                  <%= lastAirflowLog.level %>
+                <% } else { %>
+                  Belum Ada
+                <% } %>
+              </div>
+              <div>Status Airflow Terakhir</div>
+            </div>
+          </div>
+        </div>
+        <% if (lastAirflowLog) { %>
+        <div class="card-footer d-flex align-items-center justify-content-between">
+          <span class="small text-white"><%= new Date(lastAirflowLog.createdAt).toLocaleString('id-ID') %></span>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <i class="bi bi-info-circle-fill"></i>
+      Informasi Sistem
+    </div>
+    <div class="card-body">
+      <p>Sistem ini dirancang untuk mengelola dan mengotomatisasi proses pengarsipan data dari database utama ke database arsip. Gunakan menu di samping untuk navigasi.</p>
+      <ul>
+        <li><b>Manajemen Konfigurasi:</b> Tambah, edit, atau hapus aturan untuk tabel mana yang akan diarsipkan.</li>
+        <li><b>Activity Logs:</b> Lihat riwayat semua aktivitas yang terjadi di sistem, baik dari aplikasi web maupun dari proses Airflow.</li>
+      </ul>
+    </div>
+  </div>
+</div>

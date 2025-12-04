@@ -1,0 +1,124 @@
+<h1 class="mb-4"><%= title %></h1>
+
+<div class="card">
+  <div class="card-header">Formulir Konfigurasi</div>
+  <div class="card-body">
+    <form action="/config" method="POST">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="database_name" class="form-label">Nama Database</label>
+          <input
+            type="text"
+            class="form-control"
+            id="database_name"
+            name="database_name"
+            required
+          />
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="schema_name" class="form-label">Nama Schema</label>
+          <input
+            type="text"
+            class="form-control"
+            id="schema_name"
+            name="schema_name"
+            required
+          />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="table_name" class="form-label">Nama Tabel</label>
+          <input
+            type="text"
+            class="form-control"
+            id="table_name"
+            name="table_name"
+            required
+          />
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="reference_column" class="form-label"
+            >Kolom Acuan (e.g., created_at)</label
+          >
+          <input
+            type="text"
+            class="form-control"
+            id="reference_column"
+            name="reference_column"
+            required
+          />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="demarcation_value" class="form-label"
+          >Nilai Batas Demarkasi (Hari)</label
+        >
+        <input
+          type="number"
+          class="form-control"
+          id="demarcation_value"
+          name="demarcation_value"
+          placeholder="e.g., 365 untuk 1 tahun"
+          required
+        />
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="action_on_main" class="form-label"
+            >Aksi di Server Utama</label
+          >
+          <input
+            type="text"
+            class="form-control"
+            id="action_on_main"
+            name="action_on_main"
+            value="Hapus setelah clone"
+            required
+            readonly
+          />
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="action_on_archive" class="form-label"
+            >Aksi di Server Arsip</label
+          >
+          <input
+            type="text"
+            class="form-control"
+            id="action_on_archive"
+            name="action_on_archive"
+            value="Simpan sebagai arsip"
+            required
+            readonly
+          />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label"
+          >Keterangan (e.g., 5 Tahun dari tanggal proses clone)</label
+        >
+        <textarea
+          class="form-control"
+          id="description"
+          name="description"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="form-check mb-3">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="is_active"
+          name="is_active"
+          value="true"
+          checked
+        />
+        <label class="form-check-label" for="is_active">
+          Aktifkan Konfigurasi Ini
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary">Simpan</button>
+      <a href="/config" class="btn btn-secondary">Batal</a>
+    </form>
+  </div>
+</div>

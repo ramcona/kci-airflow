@@ -1,0 +1,2 @@
+Database,Schema,Table,Kolom Acuan,Nilai Batas Demarkasi,Aksi di Main Server,Aksi di Archive Server,Keterangan
+DB_SOTC,ctm_test,t_d_sales,d_sales,< 2020-10-25,Hapus setelah clone,Simpan sebagai arsip,5 Tahun dari tanggal proses clone

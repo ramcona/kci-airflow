@@ -1,0 +1,56 @@
+<h1 class="mb-4"><%= title %></h1>
+
+<a href="/config/new" class="btn btn-primary mb-3">
+  <i class="bi bi-plus-circle"></i> Tambah Konfigurasi Baru
+</a>
+
+<div class="card">
+  <div class="card-header">
+    Daftar Aturan Pengarsipan
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Status</th>
+            <th>Database</th>
+            <th>Schema</th>
+            <th>Tabel</th>
+            <th>Kolom Acuan</th>
+            <th>Nilai Batas Demarkasi (Hari)</th>
+            <th>Keterangan</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% configs.forEach(config => { %>
+            <tr>
+              <td>
+                <% if (config.is_active) { %>
+                  <span class="badge bg-success">Aktif</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">Non-Aktif</span>
+                <% } %>
+              </td>
+              <td><%= config.database_name %></td>
+              <td><%= config.schema_name %></td>
+              <td><%= config.table_name %></td>
+              <td><%= config.reference_column %></td>
+              <td><%= config.demarcation_value %></td>
+              <td><%= config.description %></td>
+              <td>
+                <a href="/config/edit/<%= config.id %>" class="btn btn-sm btn-warning">
+                  <i class="bi bi-pencil-square"></i> Edit
+                </a>
+                <a href="/config/delete/<%= config.id %>" class="btn btn-sm btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus konfigurasi ini?');">
+                  <i class="bi bi-trash"></i> Hapus
+                </a>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

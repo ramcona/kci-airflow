@@ -11,7 +11,8 @@ exports.create = (req, res) => {
 
 exports.store = async (req, res) => {
   try {
-    await User.create(req.body);
+    const { name, email, password, role } = req.body;
+    await User.create({ name, email, password, role });
     res.redirect('/users');
   } catch (error) {
     res.render('users/create', { error, layout: 'layouts/main', title: 'Create User' });
@@ -26,7 +27,8 @@ exports.edit = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
-    await user.update(req.body);
+    const { name, email, password, role } = req.body;
+    await user.update({ name, email, password, role });
     res.redirect('/users');
   } catch (error) {
     const user = await User.findByPk(req.params.id);

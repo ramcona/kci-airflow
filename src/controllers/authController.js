@@ -17,6 +17,7 @@ exports.login = async (req, res) => {
     if (user && await user.validPassword(password)) {
       req.session.userId = user.id;
       req.session.userEmail = user.email;
+      req.session.userRole = user.role;
       res.redirect('/');
     } else {
       res.render('login', { 

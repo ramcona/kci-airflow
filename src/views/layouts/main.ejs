@@ -40,11 +40,13 @@
             <i class="bi bi-gear-wide-connected"></i> Manajemen Konfigurasi
           </a>
         </li>
+        <% if (session.userRole === 'admin') { %>
         <li>
           <a href="/users" class="nav-link text-white">
             <i class="bi bi-people"></i> User Management
           </a>
         </li>
+        <% } %>
         <li>
           <a href="/logs" class="nav-link text-white">
             <i class="bi bi-clipboard-data"></i> Activity Logs

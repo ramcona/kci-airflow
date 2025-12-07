@@ -4,6 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.models.baseoperator import chain
+from airflow.models import Variable
 import json
 
 from datetime import timedelta
@@ -182,85 +183,134 @@ def _log_activity(app_hook, level, source, message, log_prefix=""):
 
 def _ensure_schema_and_table_exists(single_config: dict, **kwargs):
     """
-    Memastikan skema dan tabel arsip ada.
+    Ensures the archive schema and table exist and synchronizes the table structure
+    with the source table.
     """
     schema_name = single_config['schema_name']
     table_name = single_config['table_name']
-    
     log_prefix = f"[{schema_name}.{table_name}]"
-    log.info(f"{log_prefix} Memastikan skema dan tabel arsip ada.")
+    log.info(f"{log_prefix} Starting schema and table synchronization.")
 
     main_hook = PostgresHook(postgres_conn_id=MAIN_DB_CONN_ID)
     archive_hook = PostgresHook(postgres_conn_id=ARCHIVE_DB_CONN_ID)
+    app_hook = PostgresHook(postgres_conn_id=APP_DB_CONN_ID)
+
+    def get_table_schema(hook, schema, table):
+        sql = """
+            SELECT column_name, data_type, udt_name, character_maximum_length, 
+                   numeric_precision, numeric_scale, is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+            ORDER BY ordinal_position;
+        """
+        records = hook.get_records(sql, parameters=(schema, table))
+        if not records:
+            return {}
+        return {row[0]: {
+            "data_type": row[1],
+            "udt_name": row[2],
+            "char_max_len": row[3],
+            "num_prec": row[4],
+            "num_scale": row[5],
+            "is_nullable": row[6]
+        } for row in records}
+
+    def get_column_definition(col_name, col_attrs):
+        """Generates a SQL column definition string."""
+        data_type = col_attrs['data_type']
+        udt_name = col_attrs['udt_name']
+        
+        type_str = udt_name if data_type == 'USER-DEFINED' else data_type
+
+        if type_str in ('character varying', 'varchar') and col_attrs['char_max_len']:
+            type_str += f"({col_attrs['char_max_len']})"
+        elif type_str == 'numeric' and col_attrs['num_prec'] and col_attrs['num_scale'] is not None:
+            type_str += f"({col_attrs['num_prec']}, {col_attrs['num_scale']})"
+        elif type_str == 'numeric' and col_attrs['num_prec']:
+            type_str += f"({col_attrs['num_prec']})"
+        
+        definition = f'"{col_name}" {type_str}'
+        if col_attrs['is_nullable'] == 'NO':
+            definition += ' NOT NULL'
+        return definition
 
     try:
-        # Use parameterized queries where possible or validate schema/table names
-        # Validate to prevent SQL injection
         if not schema_name.replace('_', '').isalnum() or not table_name.replace('_', '').isalnum():
             raise ValueError(f"Invalid schema or table name: {schema_name}.{table_name}")
-        
-        archive_hook.run(f"CREATE SCHEMA IF NOT EXISTS {schema_name};")
-        log.info(f"{log_prefix} Skema '{schema_name}' dipastikan ada.")
 
-        check_table_sql = """
-            SELECT EXISTS (
-                SELECT FROM pg_tables 
-                WHERE schemaname = %s AND tablename = %s
-            );
-        """
-        table_exists = archive_hook.get_first(check_table_sql, parameters=(schema_name, table_name))[0]
+        archive_hook.run(f"CREATE SCHEMA IF NOT EXISTS {schema_name};")
+        log.info(f"{log_prefix} Schema '{schema_name}' is present.")
+
+        table_exists = archive_hook.get_first(
+            "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = %s AND tablename = %s);",
+            parameters=(schema_name, table_name)
+        )[0]
+
+        source_schema = get_table_schema(main_hook, schema_name, table_name)
+        if not source_schema:
+            raise ValueError(f"Source table '{schema_name}.{table_name}' not found in main database.")
 
         if not table_exists:
-            log.warning(f"{log_prefix} Tabel '{schema_name}.{table_name}' tidak ditemukan di server arsip. Mencoba membuat tabel...")
-            
-            # Get table schema from main DB
-            get_schema_sql = f"""
-                SELECT column_name, data_type, character_maximum_length, numeric_precision, numeric_scale, is_nullable
-                FROM information_schema.columns
-                WHERE table_schema = '{schema_name}' AND table_name = '{table_name}'
-                ORDER BY ordinal_position;
-            """
-            source_table_columns = main_hook.get_records(get_schema_sql)
+            log.warning(f"{log_prefix} Table does not exist in archive. Creating it...")
+            column_defs = [get_column_definition(name, attrs) for name, attrs in source_schema.items()]
+            create_sql = f"CREATE TABLE {schema_name}.{table_name} ({', '.join(column_defs)});"
+            archive_hook.run(create_sql)
+            log.info(f"{log_prefix} Table created successfully.")
+            _log_activity(app_hook, 'INFO', 'AIRFLOW_DAG', "Table created in archive.", log_prefix)
+            return
 
-            if not source_table_columns:
-                error_msg = f"Tabel '{schema_name}.{table_name}' tidak ditemukan di database utama. Tidak dapat membuat tabel arsip."
-                log.error(f"{log_prefix} {error_msg}")
-                _log_activity(PostgresHook(postgres_conn_id=APP_DB_CONN_ID), 'ERROR', 'AIRFLOW_DAG', error_msg, log_prefix)
-                raise ValueError(error_msg)
-
-            column_definitions = []
-            for col in source_table_columns:
-                col_name, data_type, char_max_len, num_prec, num_scale, is_nullable = col
-                col_def = f'"{col_name}" {data_type}'
-                if data_type == 'character varying' and char_max_len:
-                    col_def += f'({char_max_len})'
-                elif data_type == 'numeric' and num_prec and num_scale is not None:
-                    col_def += f'({num_prec},{num_scale})'
-                elif data_type == 'numeric' and num_prec:
-                    col_def += f'({num_prec})'
-                if is_nullable == 'NO':
-                    col_def += ' NOT NULL'
-                column_definitions.append(col_def)
-            
-            create_table_sql = f"CREATE TABLE {schema_name}.{table_name} ({', '.join(column_definitions)});"
-            
-            try:
-                archive_hook.run(create_table_sql)
-                log.info(f"{log_prefix} Tabel '{schema_name}.{table_name}' berhasil dibuat di database arsip.")
-            except Exception as e:
-                error_msg = f"Gagal membuat tabel '{schema_name}.{table_name}' di arsip: {e}"
-                log.error(f"{log_prefix} {error_msg}")
-                _log_activity(PostgresHook(postgres_conn_id=APP_DB_CONN_ID), 'ERROR', 'AIRFLOW_DAG', error_msg, log_prefix)
-                raise
-        else:
-            log.info(f"{log_prefix} Tabel '{schema_name}.{table_name}' sudah ada di database arsip.")
+        log.info(f"{log_prefix} Table exists. Comparing schema with source...")
+        archive_schema = get_table_schema(archive_hook, schema_name, table_name)
         
-        _log_activity(PostgresHook(postgres_conn_id=APP_DB_CONN_ID), 'INFO', 'AIRFLOW_DAG', "Sinkronisasi skema dan tabel arsip berhasil.", log_prefix)
+        source_cols = set(source_schema.keys())
+        archive_cols = set(archive_schema.keys())
+
+        alter_statements = []
+
+        cols_to_add = source_cols - archive_cols
+        for col_name in cols_to_add:
+            col_def = get_column_definition(col_name, source_schema[col_name])
+            alter_statements.append(f'ADD COLUMN {col_def}')
+            log.info(f"{log_prefix} Will add column: {col_name}")
+
+        cols_to_drop = archive_cols - source_cols
+        for col_name in cols_to_drop:
+            alter_statements.append(f'DROP COLUMN "{col_name}"')
+            log.warning(f"{log_prefix} Will drop column: {col_name}")
+
+        for col_name in source_cols.intersection(archive_cols):
+            source_col = source_schema[col_name]
+            archive_col = archive_schema[col_name]
+            
+            source_type_str = get_column_definition(col_name, source_col).split('" ')[1].split(' NOT')[0]
+            archive_type_str = get_column_definition(col_name, archive_col).split('" ')[1].split(' NOT')[0]
+
+            if source_type_str != archive_type_str:
+                alter_statements.append(f'ALTER COLUMN "{col_name}" TYPE {source_type_str} USING "{col_name}"::{source_type_str}')
+                log.info(f"{log_prefix} Will modify column type for: {col_name} from '{archive_type_str}' to '{source_type_str}'")
+
+            if source_col['is_nullable'] != archive_col['is_nullable']:
+                if source_col['is_nullable'] == 'NO':
+                    alter_statements.append(f'ALTER COLUMN "{col_name}" SET NOT NULL')
+                    log.info(f"{log_prefix} Will set NOT NULL for column: {col_name}")
+                else:
+                    alter_statements.append(f'ALTER COLUMN "{col_name}" DROP NOT NULL')
+                    log.info(f"{log_prefix} Will drop NOT NULL for column: {col_name}")
+
+        if not alter_statements:
+            log.info(f"{log_prefix} Schema is already in sync.")
+            _log_activity(app_hook, 'INFO', 'AIRFLOW_DAG', "Schema already in sync.", log_prefix)
+        else:
+            log.info(f"{log_prefix} Applying {len(alter_statements)} schema changes...")
+            full_alter_sql = f"ALTER TABLE {schema_name}.{table_name} {', '.join(alter_statements)};"
+            archive_hook.run(full_alter_sql)
+            log.info(f"{log_prefix} Schema synchronization successful.")
+            _log_activity(app_hook, 'INFO', 'AIRFLOW_DAG', f"Applied {len(alter_statements)} schema changes.", log_prefix)
 
     except Exception as e:
-        error_msg = f"Terjadi error saat sinkronisasi skema/tabel: {e}"
-        log.error(f"{log_prefix} {error_msg}")
-        _log_activity(PostgresHook(postgres_conn_id=APP_DB_CONN_ID), 'ERROR', 'AIRFLOW_DAG', error_msg, log_prefix)
+        error_msg = f"Error during schema synchronization: {e}"
+        log.error(f"{log_prefix} {error_msg}", exc_info=True)
+        _log_activity(app_hook, 'ERROR', 'AIRFLOW_DAG', error_msg, log_prefix)
         raise
 
 def _transfer_data_to_archive(single_config: dict, **kwargs):
@@ -482,7 +532,7 @@ def _log_final_status(purge_result: dict, **kwargs):
 with DAG(
     dag_id="archive_automation_dag",
     start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
-    schedule_interval="@daily",
+    schedule_interval=Variable.get("archive_automation_schedule_interval", default_var="@daily"),
     catchup=False,
     tags=["archive", "postgres"],
     default_args=default_args,

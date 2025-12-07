@@ -4,6 +4,7 @@ const authController = require('../controllers/authController');
 const dashboardController = require('../controllers/dashboardController');
 const configController = require('../controllers/configController');
 const logController = require('../controllers/logController');
+const userController = require('../controllers/userController');
 const authMiddleware = require('../middleware/auth');
 
 router.get('/login', authController.showLoginForm);
@@ -18,6 +19,13 @@ router.post('/config', authMiddleware, configController.store);
 router.get('/config/edit/:id', authMiddleware, configController.edit);
 router.post('/config/update/:id', authMiddleware, configController.update);
 router.get('/config/delete/:id', authMiddleware, configController.destroy);
+
+router.get('/users', authMiddleware, userController.index);
+router.get('/users/create', authMiddleware, userController.create);
+router.post('/users', authMiddleware, userController.store);
+router.get('/users/edit/:id', authMiddleware, userController.edit);
+router.post('/users/update/:id', authMiddleware, userController.update);
+router.get('/users/delete/:id', authMiddleware, userController.destroy);
 
 router.get('/logs', authMiddleware, logController.index);
 

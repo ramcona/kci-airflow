@@ -105,6 +105,25 @@ Agar DAG Airflow bisa terhubung ke database, Anda perlu menambahkan koneksi mela
     -   **Username:** `airflow`
     -   **Password:** `airflow`
 
+## Konfigurasi DAG
+
+### Jadwal Eksekusi Fleksibel (schedule_interval)
+
+Secara default, DAG `archive_automation_dag` berjalan setiap hari (`@daily`). Namun, jadwal ini dapat diubah secara dinamis melalui Airflow UI tanpa mengubah kode.
+
+1.  Buka UI Airflow di `http://localhost:8080`.
+2.  Navigasi ke **Admin -> Variables**.
+3.  Buat variabel baru dengan detail berikut:
+    -   **Key:** `archive_automation_schedule_interval`
+    -   **Val:** Masukkan jadwal yang Anda inginkan. Contoh:
+        -   `@daily` (setiap hari pada tengah malam UTC)
+        -   `@weekly` (setiap minggu pada hari Minggu tengah malam UTC)
+        -   `@monthly` (setiap bulan pada hari pertama tengah malam UTC)
+        -   `0 0 * * *` (ekspresi cron untuk setiap hari pada tengah malam)
+        -   `0 5 * * 1` (setiap Senin pukul 05:00 UTC)
+
+Jika variabel ini tidak ada, DAG akan tetap menggunakan jadwal default (`@daily`).
+
 ### 7. Konfigurasi SMTP untuk Notifikasi Email Kustom
 
 Untuk mengaktifkan notifikasi email kustom pada keberhasilan atau kegagalan DAG, Anda perlu mengonfigurasi kredensial SMTP sebagai **Airflow Variables** di UI Airflow.
